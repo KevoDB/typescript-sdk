@@ -1,7 +1,7 @@
 # 🔑 Kevo TypeScript SDK
 
-[![npm version](https://img.shields.io/npm/v/@kevodb/typescript-sdk.svg)](https://www.npmjs.com/package/@kevodb/typescript-sdk)
-[![Node.js Version](https://img.shields.io/node/v/@kevodb/typescript-sdk.svg)](https://www.npmjs.com/package/@kevodb/typescript-sdk)
+[![npm version](https://img.shields.io/npm/v/@kevodb/kevo-sdk.svg)](https://www.npmjs.com/package/@kevodb/kevo-sdk)
+[![Node.js Version](https://img.shields.io/node/v/@kevodb/kevo-sdk.svg)](https://www.npmjs.com/package/@kevodb/kevo-sdk)
 [![License](https://img.shields.io/github/license/KevoDB/typescript-sdk.svg)](LICENSE)
 
 High-performance TypeScript/JavaScript client for the [Kevo](https://github.com/KevoDB/kevo) key-value store.
