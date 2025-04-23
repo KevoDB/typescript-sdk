@@ -1,7 +1,7 @@
 # 🔑 Kevo TypeScript SDK
 
-[![npm version](https://img.shields.io/npm/v/kevo-sdk.svg)](https://www.npmjs.com/package/kevo-sdk)
-[![Node.js Version](https://img.shields.io/node/v/kevo-sdk.svg)](https://www.npmjs.com/package/kevo-sdk)
+[![npm version](https://img.shields.io/npm/v/@kevodb/typescript-sdk.svg)](https://www.npmjs.com/package/@kevodb/typescript-sdk)
+[![Node.js Version](https://img.shields.io/node/v/@kevodb/typescript-sdk.svg)](https://www.npmjs.com/package/@kevodb/typescript-sdk)
 [![License](https://img.shields.io/github/license/KevoDB/typescript-sdk.svg)](LICENSE)
 
 High-performance TypeScript/JavaScript client for the [Kevo](https://github.com/KevoDB/kevo) key-value store.
@@ -50,10 +50,10 @@ async function main() {
   try {
     // Connect to the database
     await client.connect();
-    
+
     // Basic operations
     await client.put('hello', 'world');
-    
+
     try {
       const value = await client.get('hello');
       console.log(value.toString()); // Prints: world
@@ -64,12 +64,12 @@ async function main() {
         throw error;
       }
     }
-    
+
     // Scan with prefix
     for await (const { key, value } of client.scanPrefix('user:')) {
       console.log(`Key: ${key.toString()}, Value: ${value.toString()}`);
     }
-    
+
     // Use transactions
     const tx = await client.beginTransaction();
     try {
@@ -105,22 +105,22 @@ async function main() {
     requestTimeout: 10000,
     maxRetries: 3,
   };
-  
+
   const client = new KevoClient(options);
 
   try {
     // Connect to the database
     await client.connect();
-    
+
     // Basic operations (works with string or Buffer)
     await client.put('counter', '1');
     await client.put(Buffer.from('binary-key'), Buffer.from([0x01, 0x02, 0x03]));
-    
+
     // Get values
     try {
       const value = await client.get('counter');
       console.log(`Counter: ${value.toString()}`);
-      
+
       const binaryValue = await client.get('binary-key');
       console.log(`Binary: ${binaryValue.toString('hex')}`);
     } catch (error) {
@@ -130,7 +130,7 @@ async function main() {
         throw error;
       }
     }
-    
+
     // Transaction example
     const tx = await client.beginTransaction({ readOnly: false });
     try {
