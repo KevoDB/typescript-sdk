@@ -3,6 +3,7 @@
  * 
  * This example demonstrates different scanning methods with the Kevo database:
  * - Prefix scanning (finding all keys with a specific prefix)
+ * - Suffix scanning (finding all keys with a specific suffix)
  * - Range scanning (finding keys within a range)
  * - Using scan options (limit, reverse order)
  * - Working with scan results
@@ -59,6 +60,17 @@ async function runExample() {
       { id: 'order:5005', userId: 'user:1003', items: 1, total: 59.99, status: 'processing' }
     ];
     
+    // Setup file data with extensions (for suffix scanning demo)
+    const files = [
+      { id: 'file:doc1.pdf', name: 'Annual Report 2023', size: 2548, author: 'Finance Team' },
+      { id: 'file:doc2.pdf', name: 'User Manual', size: 1845, author: 'Tech Writers' },
+      { id: 'file:img1.jpg', name: 'Product Photo', size: 500, creator: 'Marketing' },
+      { id: 'file:img2.jpg', name: 'Team Photo', size: 720, creator: 'HR Department' },
+      { id: 'file:img3.png', name: 'Logo', size: 150, creator: 'Design Team' },
+      { id: 'file:doc3.txt', name: 'Meeting Notes', size: 24, author: 'Secretary' },
+      { id: 'file:app1.exe', name: 'Installer', size: 15000, version: '2.3.1' },
+    ];
+    
     // Store all data
     const batch = client.batch();
     
@@ -73,6 +85,10 @@ async function runExample() {
     for (const order of orders) {
       batch.put(order.id, JSON.stringify(order));
     }
+
+    for (const file of files) {
+      batch.put(file.id, JSON.stringify(file));
+    }
     
     // Add some sorted data for range demonstration
     for (let i = 1; i <= 20; i++) {
@@ -80,7 +96,7 @@ async function runExample() {
     }
     
     await batch.execute();
-    console.log(`✓ Stored ${users.length + products.length + orders.length + 20} key-value pairs!\n`);
+    console.log(`✓ Stored ${users.length + products.length + orders.length + files.length + 20} key-value pairs!\n`);
 
     // DEMO 1: Prefix Scanning - Basic
     console.log('DEMO 1: Basic Prefix Scanning');
@@ -96,8 +112,55 @@ async function runExample() {
     
     console.log(`✓ Found ${count} user records\n`);
 
-    // DEMO 2: Prefix Scanning with Limit
-    console.log('DEMO 2: Prefix Scanning with Limit');
+    // DEMO 2: Suffix Scanning - Basic (New)
+    console.log('DEMO 2: Basic Suffix Scanning');
+    console.log('----------------------------');
+    console.log('Scanning for all PDF files...');
+    
+    count = 0;
+    for await (const { key, value } of client.scanSuffix('.pdf')) {
+      const fileData = JSON.parse(value.toString());
+      console.log(`- ${key.toString()}: ${fileData.name}, Size: ${fileData.size}KB`);
+      count++;
+    }
+    
+    console.log(`✓ Found ${count} PDF files\n`);
+
+    // DEMO 3: Suffix Scanning with Limit (New)
+    console.log('DEMO 3: Suffix Scanning with Limit');
+    console.log('--------------------------------');
+    console.log('Scanning for first 2 image files (.jpg and .png)...');
+    
+    count = 0;
+    // We can use a regular expression pattern in the "includes" check later
+    for await (const { key, value } of client.scan({ suffix: '.jpg', limit: 2 })) {
+      const fileData = JSON.parse(value.toString());
+      console.log(`- ${key.toString()}: ${fileData.name}, Creator: ${fileData.creator}`);
+      count++;
+    }
+    
+    console.log(`✓ Retrieved ${count} image files (limited to 2)\n`);
+
+    // DEMO 4: Prefix and Suffix Combined (New)
+    console.log('DEMO 4: Combined Prefix and Suffix Scanning');
+    console.log('----------------------------------------');
+    console.log('Scanning for files with prefix "file:" and suffix ".jpg"...');
+    
+    count = 0;
+    try {
+      for await (const { key, value } of client.scan({ prefix: 'file:', suffix: '.jpg' })) {
+        const fileData = JSON.parse(value.toString());
+        console.log(`- ${key.toString()}: ${fileData.name}`);
+        count++;
+      }
+    } catch (error) {
+      console.error(`Error during combined scan: ${error.message}`);
+    }
+    
+    console.log(`✓ Found ${count} matching files\n`);
+
+    // DEMO 5: Prefix Scanning with Limit
+    console.log('DEMO 5: Prefix Scanning with Limit');
     console.log('--------------------------------');
     console.log('Scanning for first 3 products...');
     
@@ -110,8 +173,8 @@ async function runExample() {
     
     console.log(`✓ Retrieved ${count} products (limited to 3)\n`);
 
-    // DEMO 3: Prefix Scanning in Reverse Order
-    console.log('DEMO 3: Reverse Prefix Scanning');
+    // DEMO 6: Prefix Scanning in Reverse Order
+    console.log('DEMO 6: Reverse Prefix Scanning');
     console.log('------------------------------');
     console.log('Scanning for all orders in reverse order...');
     
@@ -124,8 +187,8 @@ async function runExample() {
     
     console.log(`✓ Retrieved ${count} orders in reverse order\n`);
 
-    // DEMO 4: Range Scanning - Basic
-    console.log('DEMO 4: Basic Range Scanning');
+    // DEMO 7: Range Scanning - Basic
+    console.log('DEMO 7: Basic Range Scanning');
     console.log('---------------------------');
     console.log('Scanning for values between sorted:05 and sorted:15...');
     
@@ -143,8 +206,8 @@ async function runExample() {
     
     console.log(`✓ Retrieved ${count} values in the specified range\n`);
 
-    // DEMO 5: Range Scanning with Limit
-    console.log('DEMO 5: Range Scanning with Limit');
+    // DEMO 8: Range Scanning with Limit
+    console.log('DEMO 8: Range Scanning with Limit');
     console.log('-------------------------------');
     console.log('Scanning for first 3 values between sorted:05 and sorted:15...');
     
@@ -159,133 +222,38 @@ async function runExample() {
     
     console.log(`✓ Retrieved ${count} values (limited to 3)\n`);
 
-    // DEMO 6: Range Scanning in Reverse Order
-    console.log('DEMO 6: Reverse Range Scanning');
-    console.log('-----------------------------');
-    console.log('Scanning for values between sorted:05 and sorted:15 in reverse order...');
-    
-    count = 0;
-    try {
-      for await (const { key, value } of client.scanRange('sorted:05', 'sorted:15', { reverse: true })) {
-        if (key.toString().startsWith('sorted:')) {
-          console.log(`- ${key.toString()}: ${value.toString()}`);
-          count++;
-        }
-      }
-    } catch (error) {
-      console.error(`Error during reverse range scan: ${error.message}`);
-    }
-    
-    console.log(`✓ Retrieved ${count} values in reverse order\n`);
-
-    // DEMO 7: Category Filtering with Prefix Scan
-    console.log('DEMO 7: Filtering with Prefix (Category Example)');
-    console.log('---------------------------------------------');
-    console.log('Getting all products in the "electronics" category:');
-    
-    // First scan for all products
-    const electronics = [];
-    const seenKeys = new Set(); // To handle duplicates in our test DB
-    
-    for await (const { key, value } of client.scanPrefix('product:')) {
-      // Skip duplicates
-      const keyStr = key.toString();
-      if (seenKeys.has(keyStr)) continue;
-      seenKeys.add(keyStr);
-      
-      try {
-        const product = JSON.parse(value.toString());
-        // Filter by category
-        if (product.category === 'electronics') {
-          electronics.push(product);
-        }
-      } catch (error) {
-        console.error(`Error parsing product JSON: ${error.message}`);
-      }
-    }
-    
-    console.log(`✓ Found ${electronics.length} electronics products:`);
-    electronics.forEach(product => {
-      console.log(`- ${product.name}: $${product.price}`);
-    });
-    console.log();
-
-    // DEMO 8: Finding User Orders with Prefix Scan
-    console.log('DEMO 8: Finding User Orders (Relationship Example)');
-    console.log('-----------------------------------------------');
-    const targetUserId = 'user:1001';
-    console.log(`Getting all orders for user ID: ${targetUserId}`);
-    
-    try {
-      // Get user details
-      const userData = JSON.parse((await client.get(targetUserId)).toString());
-      console.log(`User: ${userData.name}`);
-      
-      // Scan all orders and filter
-      const userOrders = [];
-      const seenOrderKeys = new Set(); // To handle duplicates in our test DB
-      
-      for await (const { key, value } of client.scanPrefix('order:')) {
-        // Skip duplicates
-        const keyStr = key.toString();
-        if (seenOrderKeys.has(keyStr)) continue;
-        seenOrderKeys.add(keyStr);
-        
-        try {
-          const order = JSON.parse(value.toString());
-          // Filter by user ID
-          if (order.userId === targetUserId) {
-            userOrders.push(order);
-          }
-        } catch (error) {
-          console.error(`Error parsing order JSON: ${error.message}`);
-        }
-      }
-      
-      console.log(`✓ Found ${userOrders.length} orders for this user:`);
-      userOrders.forEach(order => {
-        console.log(`- Order ${order.id}: ${order.items} items, Total: $${order.total}, Status: ${order.status}`);
-      });
-    } catch (error) {
-      console.error(`Error fetching user orders: ${error.message}`);
-    }
-    console.log();
-
-    // DEMO 9: Transaction with Scan (Consistent Read)
-    console.log('DEMO 9: Transaction with Scanning');
-    console.log('-------------------------------');
+    // DEMO 9: Transaction with Scan and Suffix (New)
+    console.log('DEMO 9: Transaction with Scanning and Suffix');
+    console.log('------------------------------------------');
     console.log('Starting a read-only transaction...');
     
     const tx = await client.beginTransaction({ readOnly: true });
     console.log(`✓ Transaction started (ID: ${tx.getId()})`);
     
     // Use scan within a transaction
-    console.log('\nScanning for clothing products within transaction...');
+    console.log('\nScanning for PDF files within transaction...');
     
-    const clothingProducts = [];
+    const pdfFiles = [];
     const seenTxKeys = new Set(); // To handle duplicates in our test DB
     
     try {
-      for await (const { key, value } of tx.scan({ prefix: 'product:' })) {
+      for await (const { key, value } of tx.scan({ suffix: '.pdf' })) {
         // Skip duplicates
         const keyStr = key.toString();
         if (seenTxKeys.has(keyStr)) continue;
         seenTxKeys.add(keyStr);
         
         try {
-          const product = JSON.parse(value.toString());
-          // Filter by category
-          if (product.category === 'clothing') {
-            clothingProducts.push(product);
-          }
+          const fileData = JSON.parse(value.toString());
+          pdfFiles.push(fileData);
         } catch (error) {
-          console.error(`Error parsing product JSON in transaction: ${error.message}`);
+          console.error(`Error parsing file JSON in transaction: ${error.message}`);
         }
       }
       
-      console.log(`✓ Found ${clothingProducts.length} clothing products within transaction:`);
-      clothingProducts.forEach(product => {
-        console.log(`- ${product.name}: $${product.price}`);
+      console.log(`✓ Found ${pdfFiles.length} PDF files within transaction:`);
+      pdfFiles.forEach(file => {
+        console.log(`- ${file.name} (${file.size}KB) by ${file.author}`);
       });
       
       // Commit transaction
@@ -310,7 +278,7 @@ async function runExample() {
 
 // Helper to clear existing data
 async function clearExistingData(client) {
-  const prefixesToClear = ['user:', 'product:', 'order:', 'sorted:'];
+  const prefixesToClear = ['user:', 'product:', 'order:', 'sorted:', 'file:'];
   const batch = client.batch();
   let count = 0;
   

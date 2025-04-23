@@ -128,13 +128,73 @@ describe('Scanner', () => {
     
     // Verify connection calls
     expect(mockConnection.executeStream).toHaveBeenCalledWith('Scan', {
-      start: expect.any(Buffer),
-      end: expect.any(Buffer),
+      start_key: expect.any(Buffer),
+      end_key: expect.any(Buffer),
       limit: 10,
       reverse: true,
     });
   });
   
+  test('should scan with suffix option', async () => {
+    // Mock data
+    const mockData = [
+      { key: Buffer.from('key-suffix'), value: Buffer.from('value-suffix') },
+    ];
+    
+    // Mock the stream
+    const mockStream = createMockStream(mockData);
+    mockConnection.executeStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
+    
+    // Scan with suffix
+    const results: { key: Buffer; value: Buffer }[] = [];
+    for await (const item of scanner.scan({ suffix: 'suffix' })) {
+      results.push(item);
+    }
+    
+    // Verify results
+    expect(results).toHaveLength(1);
+    expect(results[0].key.toString()).toBe('key-suffix');
+    
+    // Verify connection calls
+    expect(mockConnection.executeStream).toHaveBeenCalledWith('Scan', {
+      limit: 0,
+      reverse: false,
+      suffix: expect.any(Buffer),
+    });
+  });
+
+  test('should scan with both prefix and suffix', async () => {
+    // Mock data
+    const mockData = [
+      { key: Buffer.from('prefix-key-suffix'), value: Buffer.from('value-both') },
+    ];
+    
+    // Mock the stream
+    const mockStream = createMockStream(mockData);
+    mockConnection.executeStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
+    
+    // Scan with both prefix and suffix
+    const results: { key: Buffer; value: Buffer }[] = [];
+    for await (const item of scanner.scan({ 
+      prefix: 'prefix-',
+      suffix: 'suffix',
+    })) {
+      results.push(item);
+    }
+    
+    // Verify results
+    expect(results).toHaveLength(1);
+    expect(results[0].key.toString()).toBe('prefix-key-suffix');
+    
+    // Verify connection calls
+    expect(mockConnection.executeStream).toHaveBeenCalledWith('Scan', {
+      limit: 0,
+      reverse: false,
+      prefix: expect.any(Buffer),
+      suffix: expect.any(Buffer),
+    });
+  });
+
   test('should handle scan errors', async () => {
     // Mock connection to throw error
     const mockError = new Error('Test error');

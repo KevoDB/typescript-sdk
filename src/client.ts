@@ -195,14 +195,21 @@ export class KevoClient {
   /**
    * Scan for keys with a prefix
    */
-  async* scanPrefix(prefix: string | Buffer, options: Omit<ScanOptions, 'prefix' | 'start' | 'end'> = {}): AsyncGenerator<{ key: Buffer; value: Buffer }, void, unknown> {
+  async* scanPrefix(prefix: string | Buffer, options: Omit<ScanOptions, 'prefix' | 'suffix' | 'start' | 'end'> = {}): AsyncGenerator<{ key: Buffer; value: Buffer }, void, unknown> {
     yield* this.scan({ ...options, prefix });
   }
 
   /**
    * Scan for keys in a range
    */
-  async* scanRange(start: string | Buffer, end: string | Buffer, options: Omit<ScanOptions, 'prefix' | 'start' | 'end'> = {}): AsyncGenerator<{ key: Buffer; value: Buffer }, void, unknown> {
+  async* scanRange(start: string | Buffer, end: string | Buffer, options: Omit<ScanOptions, 'prefix' | 'suffix' | 'start' | 'end'> = {}): AsyncGenerator<{ key: Buffer; value: Buffer }, void, unknown> {
     yield* this.scan({ ...options, start, end });
+  }
+
+  /**
+   * Scan for keys with a suffix
+   */
+  async* scanSuffix(suffix: string | Buffer, options: Omit<ScanOptions, 'prefix' | 'suffix' | 'start' | 'end'> = {}): AsyncGenerator<{ key: Buffer; value: Buffer }, void, unknown> {
+    yield* this.scan({ ...options, suffix });
   }
 }

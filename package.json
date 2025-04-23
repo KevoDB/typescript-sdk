@@ -1,6 +1,6 @@
 {
   "name": "@kevodb/kevo-sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "TypeScript SDK for Kevo database",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

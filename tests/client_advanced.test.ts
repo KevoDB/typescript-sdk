@@ -229,10 +229,41 @@ describe('KevoClient Advanced Features', () => {
     // Verify Scan was called with correct options
     expect(mockClient.Scan).toHaveBeenCalledWith(
       {
-        start: expect.any(Buffer),
-        end: expect.any(Buffer),
+        start_key: expect.any(Buffer),
+        end_key: expect.any(Buffer),
         limit: 0,
         reverse: true,
+      },
+      expect.any(Object)
+    );
+  });
+  
+  test('should scan with suffix', async () => {
+    // Mock data
+    const mockData = [
+      { key: Buffer.from('image.jpg'), value: Buffer.from('image data') },
+      { key: Buffer.from('document.jpg'), value: Buffer.from('document data') },
+    ];
+    
+    // Mock the stream
+    const mockStream = createMockStream(mockData);
+    mockClient.Scan.mockReturnValue(mockStream);
+    
+    // Scan and collect results
+    const results: { key: Buffer; value: Buffer }[] = [];
+    for await (const item of client.scanSuffix('.jpg', { limit: 5 })) {
+      results.push(item);
+    }
+    
+    // Verify results
+    expect(results).toHaveLength(2);
+    
+    // Verify Scan was called with correct options
+    expect(mockClient.Scan).toHaveBeenCalledWith(
+      {
+        suffix: expect.any(Buffer),
+        limit: 5,
+        reverse: false,
       },
       expect.any(Object)
     );

@@ -213,6 +213,7 @@ export class Transaction {
    */
   async* scan(options: {
     prefix?: string | Buffer;
+    suffix?: string | Buffer;
     start?: string | Buffer;
     end?: string | Buffer;
     limit?: number;
@@ -234,12 +235,18 @@ export class Transaction {
 
       if (options.prefix) {
         request.prefix = validateKey(options.prefix);
-      } else if (options.start || options.end) {
+      }
+      
+      if (options.suffix) {
+        request.suffix = validateKey(options.suffix);
+      }
+      
+      if (options.start || options.end) {
         if (options.start) {
-          request.start = validateKey(options.start);
+          request.start_key = validateKey(options.start);
         }
         if (options.end) {
-          request.end = validateKey(options.end);
+          request.end_key = validateKey(options.end);
         }
       }
 
