@@ -16,7 +16,7 @@ interface TransactionResponse {
 }
 
 interface TxGetResponse {
-  found: boolean;
+  exists: boolean;
   value: Uint8Array;
 }
 
@@ -128,7 +128,7 @@ export class Transaction {
       
       const response = await this.connection.executeWithRetry<TxGetResponse>('TxGet', request);
       
-      if (!response.found) {
+      if (!response.exists) {
         throw new KeyNotFoundError(keyBuffer);
       }
       

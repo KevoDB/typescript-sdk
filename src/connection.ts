@@ -7,10 +7,9 @@ import * as protoLoader from '@grpc/proto-loader';
 import * as path from 'path';
 import { ConnectionError, TimeoutError } from './errors';
 
-// Define a type for the promisified gRPC methods we'll create
-type GrpcPromiseMethod<RequestType, ResponseType> = (
-  request: RequestType
-) => Promise<ResponseType>;
+// Generic type for requests and responses
+type GrpcRequest = Record<string, unknown>;
+type GrpcResponse = Record<string, unknown>;
 
 // Extended client interface with known methods
 interface GrpcServiceClient {
@@ -23,20 +22,20 @@ interface GrpcServiceClient {
   
   // Strongly typed methods from the proto
   // We use uppercase first letter to match the proto definition
-  Get: (request: any, callback: (error: Error | null, response: any) => void) => void;
-  Put: (request: any, callback: (error: Error | null, response: any) => void) => void;
-  Delete: (request: any, callback: (error: Error | null, response: any) => void) => void;
-  BatchWrite: (request: any, callback: (error: Error | null, response: any) => void) => void;
-  Scan: (request: any) => grpc.ClientReadableStream<unknown>;
-  BeginTransaction: (request: any, callback: (error: Error | null, response: any) => void) => void;
-  CommitTransaction: (request: any, callback: (error: Error | null, response: any) => void) => void;
-  RollbackTransaction: (request: any, callback: (error: Error | null, response: any) => void) => void;
-  TxGet: (request: any, callback: (error: Error | null, response: any) => void) => void;
-  TxPut: (request: any, callback: (error: Error | null, response: any) => void) => void;
-  TxDelete: (request: any, callback: (error: Error | null, response: any) => void) => void;
-  TxScan: (request: any) => grpc.ClientReadableStream<unknown>;
-  GetStats: (request: any, callback: (error: Error | null, response: any) => void) => void;
-  Compact: (request: any, callback: (error: Error | null, response: any) => void) => void;
+  Get: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
+  Put: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
+  Delete: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
+  BatchWrite: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
+  Scan: (request: GrpcRequest) => grpc.ClientReadableStream<unknown>;
+  BeginTransaction: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
+  CommitTransaction: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
+  RollbackTransaction: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
+  TxGet: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
+  TxPut: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
+  TxDelete: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
+  TxScan: (request: GrpcRequest) => grpc.ClientReadableStream<unknown>;
+  GetStats: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
+  Compact: (request: GrpcRequest, callback: (error: Error | null, response: GrpcResponse) => void) => void;
 }
 
 export interface ConnectionOptions {
@@ -237,7 +236,11 @@ export class Connection {
         const client = this.getClient();
         
         // Get the RPC method directly from the prototype
-        const methodFn = (client as any)[method];
+        const methodFn = client[method] as unknown as (
+          request: Record<string, unknown>,
+          metadata: { deadline: number },  
+          callback: (error: Error | null, response: T) => void
+        ) => void;
         
         if (typeof methodFn !== 'function') {
           const proto = Object.getPrototypeOf(client);
@@ -248,8 +251,11 @@ export class Connection {
           return;
         }
         
+        // Set deadline for the request
+        const deadline = Date.now() + this.options.requestTimeout!;
+        
         // Call the method with callback
-        methodFn.call(client, request, (error: Error | null, response: T) => {
+        methodFn.call(client, request, { deadline }, (error: Error | null, response: T) => {
           if (error) {
             reject(error);
           } else {
@@ -273,7 +279,11 @@ export class Connection {
 
       const client = this.getClient();
       
-      const methodFn = (client as any)[method];
+      const methodFn = client[method] as unknown as (
+        request: Record<string, unknown>,
+        metadata?: { deadline?: number }
+      ) => grpc.ClientReadableStream<unknown>;
+      
       if (typeof methodFn !== 'function') {
         const proto = Object.getPrototypeOf(client);
         const methods = Object.getOwnPropertyNames(proto)
@@ -282,7 +292,10 @@ export class Connection {
         throw new Error(`Streaming method ${method} not found. Available methods: ${methods.join(', ')}`);
       }
       
-      return methodFn.call(client, request);
+      // Set deadline for the request
+      const deadline = Date.now() + this.options.requestTimeout!;
+      
+      return methodFn.call(client, request, { deadline });
     } catch (error) {
       throw error;
     }

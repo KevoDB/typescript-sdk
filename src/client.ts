@@ -60,9 +60,9 @@ export class KevoClient {
         key: keyBuffer
       };
       
-      const response = await this.connection.executeWithRetry<{found: boolean; value: Uint8Array}>('Get', request);
+      const response = await this.connection.executeWithRetry<{exists: boolean; value: Uint8Array}>('Get', request);
       
-      if (!response.found) {
+      if (!response.exists) {
         throw new KeyNotFoundError(keyBuffer);
       }
       
@@ -92,11 +92,7 @@ export class KevoClient {
         sync: sync
       };
       
-      const response = await this.connection.executeWithRetry<{success: boolean}>('Put', request);
-      
-      if (response && !response.success) {
-        throw new Error('Put operation failed: Server returned success=false');
-      }
+      await this.connection.executeWithRetry<Record<string, never>>('Put', request);
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to put value: ${error.message}`);
@@ -117,11 +113,7 @@ export class KevoClient {
         sync: sync
       };
       
-      const response = await this.connection.executeWithRetry<{success: boolean}>('Delete', request);
-      
-      if (response && !response.success) {
-        throw new Error('Delete operation failed: Server returned success=false');
-      }
+      await this.connection.executeWithRetry<Record<string, never>>('Delete', request);
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to delete value: ${error.message}`);
@@ -137,21 +129,21 @@ export class KevoClient {
     try {
       const request = {};
       const response = await this.connection.executeWithRetry<{
-        key_count: string;
-        storage_size: string;
-        memtable_count: string;
-        sstable_count: string;
-        write_amplification: number;
-        read_amplification: number;
+        total_keys: string;
+        disk_usage_bytes: string;
+        memory_usage_bytes: string;
+        last_compaction_time: string;
+        uptime: string;
+        version: string;
       }>('GetStats', request);
       
       return {
-        totalKeys: parseInt(response.key_count, 10),
-        diskUsageBytes: parseInt(response.storage_size, 10),
-        memoryUsageBytes: 0, // Not available in the proto
-        lastCompactionTime: new Date().toISOString(), // Not available in the proto
-        uptime: "0", // Not available in the proto
-        version: "1.0" // Not available in the proto
+        totalKeys: parseInt(response.total_keys, 10),
+        diskUsageBytes: parseInt(response.disk_usage_bytes, 10),
+        memoryUsageBytes: parseInt(response.memory_usage_bytes, 10),
+        lastCompactionTime: response.last_compaction_time,
+        uptime: response.uptime,
+        version: response.version
       };
     } catch (error) {
       if (error instanceof Error) {
