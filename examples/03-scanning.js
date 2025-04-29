@@ -269,6 +269,38 @@ async function runExample() {
   } catch (error) {
     console.error('Error:', error.message);
   } finally {
+    // Get scan statistics
+    try {
+      console.log('\nRetrieving scan statistics...');
+      const stats = await client.getStats();
+      
+      console.log('✓ Scan statistics:');
+      console.log(`   Total scan operations: ${stats.operationCounts?.['scan_ops'] || 0}`);
+      
+      // Calculate total scan results
+      let totalItems = 0;
+      for (const [op, count] of Object.entries(stats.operationCounts || {})) {
+        if (op.includes('scan_item')) {
+          totalItems += count;
+        }
+      }
+      console.log(`   Total items scanned: ${totalItems}`);
+      
+      // Display scan latency if available
+      if (stats.latencyStats?.['scan_latency']) {
+        const latency = stats.latencyStats['scan_latency'];
+        console.log('\n   === Scan Latency ===');
+        console.log(`     Count: ${latency.count || 0}`);
+        console.log(`     Avg: ${formatNanoseconds(latency.avgNs || 0)}`);
+        console.log(`     Min: ${formatNanoseconds(latency.minNs || 0)}`);
+        console.log(`     Max: ${formatNanoseconds(latency.maxNs || 0)}`);
+      }
+      
+      console.log();
+    } catch (error) {
+      console.log(`Failed to get scan stats: ${error.message}`);
+    }
+    
     // Always disconnect when done
     console.log('\nDisconnecting from database...');
     client.disconnect();
@@ -292,6 +324,19 @@ async function clearExistingData(client) {
   if (count > 0) {
     await batch.execute();
     console.log(`Cleared ${count} existing keys`);
+  }
+}
+
+// Helper function to format nanoseconds to a more readable format
+function formatNanoseconds(ns) {
+  if (ns < 1000) {
+    return `${ns}ns`;
+  } else if (ns < 1000000) {
+    return `${(ns / 1000).toFixed(2)}µs`;
+  } else if (ns < 1000000000) {
+    return `${(ns / 1000000).toFixed(2)}ms`;
+  } else {
+    return `${(ns / 1000000000).toFixed(2)}s`;
   }
 }
 

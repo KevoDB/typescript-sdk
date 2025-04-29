@@ -17,6 +17,7 @@ High-performance TypeScript/JavaScript client for the [Kevo](https://github.com/
 - Buffer and string interface
 - TLS/SSL support
 - Automatic retries with exponential backoff
+- Smart query routing (reads to replicas, writes to primary)
 
 ## 🚀 Installation
 
@@ -45,6 +46,10 @@ async function main() {
   const client = new KevoClient({
     host: 'localhost',
     port: 50051,
+    // Smart query routing options
+    autoRouteReads: true,    // Route reads to replicas when available
+    autoRouteWrites: true,   // Route writes to primary
+    preferReplica: true      // Prefer replicas for read operations
   });
 
   try {
@@ -104,6 +109,11 @@ async function main() {
     connectTimeout: 5000,
     requestTimeout: 10000,
     maxRetries: 3,
+    // Smart query routing options
+    autoRouteReads: true,
+    autoRouteWrites: true,
+    preferReplica: true,
+    replicaSelectionStrategy: 'round_robin',
   };
 
   const client = new KevoClient(options);
@@ -118,6 +128,7 @@ async function main() {
 
     // Get values
     try {
+      // Read operations automatically route to replicas based on client configuration
       const value = await client.get('counter');
       console.log(`Counter: ${value.toString()}`);
 
@@ -162,16 +173,22 @@ const client = new KevoClient(options);
 
 ```typescript
 interface ConnectionOptions {
-  host: string;               // Required: The database host
-  port: number;               // Required: The database port
-  useTls?: boolean;           // Optional: Whether to use TLS (default: false)
-  caCert?: Buffer;            // Optional: CA certificate for TLS
-  clientCert?: Buffer;        // Optional: Client certificate for TLS
-  clientKey?: Buffer;         // Optional: Client key for TLS
-  connectTimeout?: number;    // Optional: Connection timeout in ms (default: 5000)
-  requestTimeout?: number;    // Optional: Request timeout in ms (default: 10000)
-  maxRetries?: number;        // Optional: Maximum number of retries (default: 3)
-  retryDelay?: number;        // Optional: Base delay between retries in ms (default: 1000)
+  host: string;                             // Required: The database host
+  port: number;                             // Required: The database port
+  useTls?: boolean;                         // Optional: Whether to use TLS (default: false)
+  caCert?: Buffer;                          // Optional: CA certificate for TLS
+  clientCert?: Buffer;                      // Optional: Client certificate for TLS
+  clientKey?: Buffer;                       // Optional: Client key for TLS
+  connectTimeout?: number;                  // Optional: Connection timeout in ms (default: 5000)
+  requestTimeout?: number;                  // Optional: Request timeout in ms (default: 10000)
+  maxRetries?: number;                      // Optional: Maximum number of retries (default: 3)
+  retryDelay?: number;                      // Optional: Base delay between retries in ms (default: 1000)
+  
+  // Smart Query Routing Options
+  autoRouteReads?: boolean;                 // Optional: Auto-route reads to replicas (default: true)
+  autoRouteWrites?: boolean;                // Optional: Auto-route writes to primary (default: true)
+  preferReplica?: boolean;                  // Optional: Prefer replicas for reads (default: true)
+  replicaSelectionStrategy?: 'random' | 'sequential' | 'round_robin'; // Optional: How to choose replicas (default: 'round_robin')
 }
 ```
 
@@ -244,6 +261,7 @@ for await (const { key, value } of client.scan({
   prefix: 'user:',
   limit: 10,
   reverse: true
+  // Read operations will automatically route to replicas based on client configuration
 })) {
   console.log(`${key.toString()}: ${value.toString()}`);
 }
@@ -261,6 +279,7 @@ The SDK provides several error classes for specific error cases:
 | `TransactionError` | Transaction-related errors |
 | `KeyNotFoundError` | Key not found errors |
 | `InvalidArgumentError` | Invalid argument errors |
+| `ReadOnlyError` | Errors when attempting write operations on read-only replicas |
 
 ## 📋 Examples
 
@@ -294,6 +313,28 @@ npm run lint
 
 # Check TypeScript types
 npm run typecheck
+```
+
+### Generating Code from Proto Files
+
+The SDK uses gRPC for communication with the Kevo database. The TypeScript client code is generated from the Protocol Buffer definition file:
+
+```bash
+# Install protobuf compiler if needed
+# For Ubuntu/Debian:
+# sudo apt-get install protobuf-compiler
+# For macOS:
+# brew install protobuf
+
+# Generate the TypeScript client code
+npx grpc_tools_node_protoc \
+  --js_out=import_style=commonjs,binary:./src/proto \
+  --grpc_out=grpc_js:./src/proto \
+  --proto_path=./proto \
+  ./proto/kevo/service.proto
+
+# Or use the @grpc/proto-loader package as implemented in the SDK
+# See connection.ts for implementation details
 ```
 
 ## 📄 License

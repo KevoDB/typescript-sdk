@@ -95,7 +95,8 @@ export class BatchWriter {
     };
 
     try {
-      await this.connection.executeWithRetry<Record<string, never>>('BatchWrite', request);
+      // Batch write is always a write operation that must go to the primary
+      await this.connection.executeWrite<Record<string, never>>('BatchWrite', request);
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Batch execution failed: ${error.message}`);

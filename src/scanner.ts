@@ -48,7 +48,8 @@ export class Scanner {
         }
       }
 
-      const stream = this.connection.executeStream('Scan', request);
+      // Use executeReadStream to route to a replica if possible (based on client config)
+      const stream = this.connection.executeReadStream('Scan', request);
 
       for await (const response of stream) {
         // Cast response to expected shape

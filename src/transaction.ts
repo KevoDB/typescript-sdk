@@ -16,7 +16,7 @@ interface TransactionResponse {
 }
 
 interface TxGetResponse {
-  exists: boolean;
+  found: boolean;
   value: Uint8Array;
 }
 
@@ -45,7 +45,9 @@ export class Transaction {
         timeout_ms: this.timeout
       };
       
-      const response = await this.connection.executeWithRetry<TransactionResponse>('BeginTransaction', request);
+      // We always use the primary for transactions, even read-only ones, 
+      // since they need to be consistent with a snapshot
+      const response = await this.connection.executeWrite<TransactionResponse>('BeginTransaction', request);
       this.id = response.transaction_id;
     } catch (error) {
       if (error instanceof Error) {
@@ -71,7 +73,8 @@ export class Transaction {
         transaction_id: this.id
       };
       
-      await this.connection.executeWithRetry<Record<string, never>>('CommitTransaction', request);
+      // Always use primary for committing transactions
+      await this.connection.executeWrite<Record<string, never>>('CommitTransaction', request);
       this.committed = true;
     } catch (error) {
       if (error instanceof Error) {
@@ -97,7 +100,8 @@ export class Transaction {
         transaction_id: this.id
       };
       
-      await this.connection.executeWithRetry<Record<string, never>>('RollbackTransaction', request);
+      // Always use primary for rolling back transactions
+      await this.connection.executeWrite<Record<string, never>>('RollbackTransaction', request);
       this.rolledBack = true;
     } catch (error) {
       if (error instanceof Error) {
@@ -126,9 +130,10 @@ export class Transaction {
         key: keyBuffer
       };
       
-      const response = await this.connection.executeWithRetry<TxGetResponse>('TxGet', request);
+      // All transaction operations go to the primary for consistency
+      const response = await this.connection.executeWrite<TxGetResponse>('TxGet', request);
       
-      if (!response.exists) {
+      if (!response.found) {
         throw new KeyNotFoundError(keyBuffer);
       }
       
@@ -168,7 +173,8 @@ export class Transaction {
         value: valueBuffer
       };
       
-      await this.connection.executeWithRetry<Record<string, never>>('TxPut', request);
+      // All transaction operations go to the primary
+      await this.connection.executeWrite<Record<string, never>>('TxPut', request);
     } catch (error) {
       if (error instanceof Error) {
         throw new TransactionError(`Failed to put value: ${error.message}`);
@@ -199,7 +205,8 @@ export class Transaction {
         key: keyBuffer
       };
       
-      await this.connection.executeWithRetry<Record<string, never>>('TxDelete', request);
+      // All transaction operations go to the primary
+      await this.connection.executeWrite<Record<string, never>>('TxDelete', request);
     } catch (error) {
       if (error instanceof Error) {
         throw new TransactionError(`Failed to delete value: ${error.message}`);
@@ -250,7 +257,8 @@ export class Transaction {
         }
       }
 
-      const stream = this.connection.executeStream('TxScan', request);
+      // All transaction operations go to the primary for consistency
+      const stream = this.connection.executeWriteStream('TxScan', request);
       
       for await (const response of stream) {
         // Cast response to expected shape

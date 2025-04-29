@@ -16,10 +16,15 @@ async function runExample() {
   console.log('EXAMPLE 1: BASIC OPERATIONS');
   console.log('===========================\n');
 
-  // Create a client with connection details
+  // Create a client with connection details and smart query options
   const client = new KevoClient({
     host: 'localhost',
     port: 50051,
+    // Smart query options
+    autoRouteReads: true,      // Automatically route read operations to replicas if available
+    autoRouteWrites: true,     // Automatically route write operations to primary
+    preferReplica: true,       // Prefer using a replica for read operations when available
+    replicaSelectionStrategy: 'round_robin' // Use round-robin strategy for selecting replicas
   });
 
   try {
@@ -33,7 +38,7 @@ async function runExample() {
     await client.put('greeting', 'Hello, Kevo!');
     console.log('✓ Value stored successfully!\n');
 
-    // Get the value back
+    // Get the value back (routing is handled automatically based on client config)
     console.log('Retrieving the value...');
     const value = await client.get('greeting');
     console.log(`✓ Retrieved value: "${value.toString()}" (${value.length} bytes)\n`);
@@ -87,27 +92,65 @@ async function runExample() {
     }
     console.log();
 
-    // Get database stats
+    // Get database stats (routing is handled automatically)
     try {
       console.log('Retrieving database statistics...');
       const stats = await client.getStats();
       console.log('✓ Database statistics:');
-      console.log(`   Total keys: ${stats.totalKeys}`);
-      console.log(`   Disk usage: ${formatBytes(stats.diskUsageBytes)}`);
       
-      // These fields might not be available depending on the server implementation
-      if (stats.memoryUsageBytes) {
-        console.log(`   Memory usage: ${formatBytes(stats.memoryUsageBytes)}`);
+      // Database size and structure
+      console.log('\n   === Database Structure ===');
+      console.log(`   Key count: ${stats.keyCount || 0}`);
+      console.log(`   Storage size: ${formatBytes(stats.storageSize || 0)}`);
+      console.log(`   Memtables: ${stats.memtableCount || 0}`);
+      console.log(`   SSTables: ${stats.sstableCount || 0}`);
+      
+      // Performance characteristics
+      console.log('\n   === Performance Metrics ===');
+      console.log(`   Write amplification: ${stats.writeAmplification?.toFixed(2) || '0.00'}`);
+      console.log(`   Read amplification: ${stats.readAmplification?.toFixed(2) || '0.00'}`);
+      console.log(`   Total bytes read: ${formatBytes(stats.totalBytesRead || 0)}`);
+      console.log(`   Total bytes written: ${formatBytes(stats.totalBytesWritten || 0)}`);
+      console.log(`   Flush count: ${stats.flushCount || 0}`);
+      console.log(`   Compaction count: ${stats.compactionCount || 0}`);
+      
+      // Operation counts
+      if (stats.operationCounts && Object.keys(stats.operationCounts).length > 0) {
+        console.log('\n   === Operation Counts ===');
+        for (const [op, count] of Object.entries(stats.operationCounts)) {
+          console.log(`   ${op}: ${count}`);
+        }
       }
-      if (stats.version) {
-        console.log(`   Version: ${stats.version}`);
+      
+      // Latency statistics
+      if (stats.latencyStats && Object.keys(stats.latencyStats).length > 0) {
+        console.log('\n   === Latency Statistics (ns) ===');
+        for (const [op, latency] of Object.entries(stats.latencyStats)) {
+          console.log(`   ${op}:`);
+          console.log(`     Count: ${latency?.count || 0}`);
+          console.log(`     Avg: ${formatNanoseconds(latency?.avgNs || 0)}`);
+          console.log(`     Min: ${formatNanoseconds(latency?.minNs || 0)}`);
+          console.log(`     Max: ${formatNanoseconds(latency?.maxNs || 0)}`);
+        }
       }
-      if (stats.uptime) {
-        console.log(`   Uptime: ${stats.uptime}`);
+      
+      // Error counts
+      if (stats.errorCounts && Object.keys(stats.errorCounts).length > 0) {
+        console.log('\n   === Error Counts ===');
+        for (const [error, count] of Object.entries(stats.errorCounts)) {
+          console.log(`   ${error}: ${count}`);
+        }
       }
-      if (stats.lastCompactionTime) {
-        console.log(`   Last compaction: ${stats.lastCompactionTime}`);
+      
+      // Recovery statistics
+      if (stats.recoveryStats && stats.recoveryStats.walFilesRecovered > 0) {
+        console.log('\n   === Recovery Statistics ===');
+        console.log(`   WAL files recovered: ${stats.recoveryStats.walFilesRecovered}`);
+        console.log(`   WAL entries recovered: ${stats.recoveryStats.walEntriesRecovered}`);
+        console.log(`   Corrupted entries: ${stats.recoveryStats.walCorruptedEntries}`);
+        console.log(`   Recovery duration: ${stats.recoveryStats.walRecoveryDurationMs}ms`);
       }
+      
       console.log();
     } catch (error) {
       console.log(`Failed to get stats: ${error.message}`);
@@ -116,6 +159,19 @@ async function runExample() {
   } catch (error) {
     console.error('Error:', error.message);
   } finally {
+    // Demonstrate scanning (routing is handled automatically)
+    console.log('Scanning keys with prefix "user:"...');
+    const scanResults = [];
+    for await (const item of client.scanPrefix('user:')) {
+      scanResults.push({
+        key: item.key.toString(),
+        value: JSON.parse(item.value.toString())
+      });
+    }
+    console.log(`✓ Found ${scanResults.length} keys with prefix "user:"`);
+    console.log(scanResults);
+    console.log();
+
     // Always disconnect when done
     console.log('Disconnecting from database...');
     client.disconnect();
@@ -129,6 +185,19 @@ function formatBytes(bytes) {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${parseFloat((bytes / Math.pow(1024, i)).toFixed(2))} ${sizes[i]}`;
+}
+
+// Helper function to format nanoseconds to a more readable format
+function formatNanoseconds(ns) {
+  if (ns < 1000) {
+    return `${ns}ns`;
+  } else if (ns < 1000000) {
+    return `${(ns / 1000).toFixed(2)}µs`;
+  } else if (ns < 1000000000) {
+    return `${(ns / 1000000).toFixed(2)}ms`;
+  } else {
+    return `${(ns / 1000000000).toFixed(2)}s`;
+  }
 }
 
 // Run the example

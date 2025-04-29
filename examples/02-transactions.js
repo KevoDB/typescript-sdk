@@ -177,6 +177,41 @@ async function runExample() {
     const user1Final = JSON.parse((await client.get('user:1')).toString());
     const user2Final = JSON.parse((await client.get('user:2')).toString());
     console.log(`Final balances - Alice: $${user1Final.balance.toFixed(2)}, Bob: $${user2Final.balance.toFixed(2)}\n`);
+    
+    // Get transaction statistics
+    try {
+      console.log('Retrieving transaction statistics...');
+      const stats = await client.getStats();
+      console.log('✓ Transaction statistics:');
+      console.log(`   Total transactions: ${stats.operationCounts?.['begin_transaction_ops'] || 0}`);
+      console.log(`   Committed transactions: ${stats.operationCounts?.['commit_transaction_ops'] || 0}`);
+      console.log(`   Rolled back transactions: ${stats.operationCounts?.['rollback_transaction_ops'] || 0}`);
+      
+      if (stats.latencyStats) {
+        console.log('\n   === Transaction Latency Statistics ===');
+        const txLatencies = [
+          'begin_transaction_latency',
+          'commit_transaction_latency',
+          'rollback_transaction_latency',
+          'tx_get_latency',
+          'tx_put_latency',
+          'tx_delete_latency'
+        ];
+        
+        for (const metric of txLatencies) {
+          if (stats.latencyStats[metric]) {
+            const latency = stats.latencyStats[metric];
+            console.log(`   ${metric.replace(/_/g, ' ')}:`);
+            console.log(`     Count: ${latency.count || 0}`);
+            console.log(`     Avg: ${formatNanoseconds(latency.avgNs || 0)}`);
+            console.log(`     Max: ${formatNanoseconds(latency.maxNs || 0)}`);
+          }
+        }
+      }
+      console.log();
+    } catch (error) {
+      console.log(`Failed to get transaction stats: ${error.message}`);
+    }
 
     // Example 4: Read-only transaction
     console.log('DEMO 4: Read-Only Transaction');
@@ -211,6 +246,19 @@ async function runExample() {
     console.log('Disconnecting from database...');
     client.disconnect();
     console.log('✓ Disconnected successfully!');
+  }
+}
+
+// Helper function to format nanoseconds to a more readable format
+function formatNanoseconds(ns) {
+  if (ns < 1000) {
+    return `${ns}ns`;
+  } else if (ns < 1000000) {
+    return `${(ns / 1000).toFixed(2)}µs`;
+  } else if (ns < 1000000000) {
+    return `${(ns / 1000000).toFixed(2)}ms`;
+  } else {
+    return `${(ns / 1000000000).toFixed(2)}s`;
   }
 }
 
