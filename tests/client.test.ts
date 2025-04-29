@@ -67,6 +67,9 @@ jest.mock('@grpc/grpc-js', () => {
           TxScan: jest.fn(),
           GetStats: jest.fn(),
           Compact: jest.fn(),
+          GetNodeInfo: jest.fn().mockImplementation((request, metadata, callback) => {
+            callback(null, { role: 'primary', replicas: [] });
+          }),
         })),
       },
     })),
@@ -103,118 +106,93 @@ describe('KevoClient', () => {
   });
   
   test('should get a value', async () => {
-    const mockResponse = {
-      exists: true,
+    // Mock executeRead method on the connection
+    (client as any).connection.executeRead = jest.fn().mockResolvedValue({
+      found: true,
       value: Buffer.from('test-value'),
-    };
+    });
     
-    // @ts-ignore - Mocking internal client
-    client['connection']['client'] = {
-      Get: jest.fn().mockImplementation((request, metadata, callback) => {
-        callback(null, mockResponse);
-      }),
-      getChannel: jest.fn().mockReturnValue({
-        getConnectivityState: jest.fn().mockReturnValue(2), // READY
-      }),
-    };
-    
-    // @ts-ignore - Mock connected state
-    client['connection']['connected'] = true;
+    // Set the connected state
+    (client as any).connection.connected = true;
     
     const value = await client.get('test-key');
     expect(value.toString()).toBe('test-value');
   });
   
   test('should throw KeyNotFoundError when key does not exist', async () => {
-    const mockResponse = {
-      exists: false,
-    };
+    // Mock executeRead method on the connection
+    (client as any).connection.executeRead = jest.fn().mockResolvedValue({
+      found: false,
+    });
     
-    // @ts-ignore - Mocking internal client
-    client['connection']['client'] = {
-      Get: jest.fn().mockImplementation((request, metadata, callback) => {
-        callback(null, mockResponse);
-      }),
-      getChannel: jest.fn().mockReturnValue({
-        getConnectivityState: jest.fn().mockReturnValue(2), // READY
-      }),
-    };
-    
-    // @ts-ignore - Mock connected state
-    client['connection']['connected'] = true;
+    // Set the connected state
+    (client as any).connection.connected = true;
     
     await expect(client.get('non-existent-key')).rejects.toThrow(KeyNotFoundError);
   });
   
   test('should put a value', async () => {
-    const mockResponse = {};
+    // Mock executeWrite method on the connection
+    (client as any).connection.executeWrite = jest.fn().mockResolvedValue({});
     
-    // @ts-ignore - Mocking internal client
-    client['connection']['client'] = {
-      Put: jest.fn().mockImplementation((request, metadata, callback) => {
-        callback(null, mockResponse);
-      }),
-      getChannel: jest.fn().mockReturnValue({
-        getConnectivityState: jest.fn().mockReturnValue(2), // READY
-      }),
-    };
-    
-    // @ts-ignore - Mock connected state
-    client['connection']['connected'] = true;
+    // Set the connected state
+    (client as any).connection.connected = true;
     
     await expect(client.put('test-key', 'test-value')).resolves.not.toThrow();
   });
   
   test('should delete a value', async () => {
-    const mockResponse = {};
+    // Mock executeWrite method on the connection
+    (client as any).connection.executeWrite = jest.fn().mockResolvedValue({});
     
-    // @ts-ignore - Mocking internal client
-    client['connection']['client'] = {
-      Delete: jest.fn().mockImplementation((request, metadata, callback) => {
-        callback(null, mockResponse);
-      }),
-      getChannel: jest.fn().mockReturnValue({
-        getConnectivityState: jest.fn().mockReturnValue(2), // READY
-      }),
-    };
-    
-    // @ts-ignore - Mock connected state
-    client['connection']['connected'] = true;
+    // Set the connected state
+    (client as any).connection.connected = true;
     
     await expect(client.delete('test-key')).resolves.not.toThrow();
   });
   
   test('should get database stats', async () => {
-    const mockResponse = {
-      total_keys: '100',
-      disk_usage_bytes: '1024',
-      memory_usage_bytes: '512',
-      last_compaction_time: '2023-01-01T00:00:00Z',
-      uptime: '1d 2h 3m',
-      version: '1.0.0',
-    };
+    // Mock executeRead method on the connection to match the expected stats format
+    (client as any).connection.executeRead = jest.fn().mockResolvedValue({
+      key_count: 100,
+      storage_size: 1024,
+      memtable_count: 1,
+      sstable_count: 5,
+      write_amplification: 1.5,
+      read_amplification: 1.2,
+      operation_counts: { get: 1000, put: 500 },
+      latency_stats: {
+        get: { count: 1000, avg_ns: 100000, min_ns: 50000, max_ns: 500000 },
+        put: { count: 500, avg_ns: 200000, min_ns: 100000, max_ns: 1000000 }
+      },
+      error_counts: { timeout: 5 },
+      total_bytes_read: 10240,
+      total_bytes_written: 5120,
+      flush_count: 10,
+      compaction_count: 2,
+      recovery_stats: {
+        wal_files_recovered: 1,
+        wal_entries_recovered: 100,
+        wal_corrupted_entries: 0,
+        wal_recovery_duration_ms: 500
+      }
+    });
     
-    // @ts-ignore - Mocking internal client
-    client['connection']['client'] = {
-      GetStats: jest.fn().mockImplementation((request, metadata, callback) => {
-        callback(null, mockResponse);
-      }),
-      getChannel: jest.fn().mockReturnValue({
-        getConnectivityState: jest.fn().mockReturnValue(2), // READY
-      }),
-    };
-    
-    // @ts-ignore - Mock connected state
-    client['connection']['connected'] = true;
+    // Set the connected state
+    (client as any).connection.connected = true;
     
     const stats = await client.getStats();
-    expect(stats).toEqual({
-      totalKeys: 100,
-      diskUsageBytes: 1024,
-      memoryUsageBytes: 512,
-      lastCompactionTime: '2023-01-01T00:00:00Z',
-      uptime: '1d 2h 3m',
-      version: '1.0.0',
-    });
+    
+    // Check that the stats object has the expected properties (as defined in the Stats interface)
+    expect(stats).toHaveProperty('keyCount');
+    expect(stats).toHaveProperty('storageSize');
+    expect(stats).toHaveProperty('memtableCount');
+    expect(stats).toHaveProperty('latencyStats');
+    expect(stats).toHaveProperty('recoveryStats');
+    
+    // Verify specific values
+    expect(stats.keyCount).toBe(100);
+    expect(stats.storageSize).toBe(1024);
+    expect(stats.operationCounts).toEqual({ get: 1000, put: 500 });
   });
 });

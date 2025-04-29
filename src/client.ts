@@ -9,7 +9,8 @@ import { BatchWriter } from './batch';
 import { KeyNotFoundError } from './errors';
 import { validateKey, validateValue } from './utils';
 
-// Re-export ConnectionOptions as our client uses it directly
+// Re-export ConnectionOptions and ReplicaSelectionStrategy as our client uses them directly
+import { ReplicaSelectionStrategy } from './connection';
 export { ConnectionOptions, ReplicaSelectionStrategy };
 
 export interface LatencyStats {
@@ -183,7 +184,7 @@ export class KevoClient {
           wal_corrupted_entries?: number;
           wal_recovery_duration_ms?: number;
         };
-      }>('GetStats', request, preferReplica);
+      }>('GetStats', request);
       
       // Convert snake_case keys to camelCase and handle null values
       const latencyStats: Record<string, LatencyStats> = {};

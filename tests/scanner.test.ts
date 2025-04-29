@@ -29,13 +29,13 @@ function createMockStream(data: { key: Buffer; value: Buffer }[]): Readable {
 }
 
 describe('Scanner', () => {
-  let mockConnection: { executeStream: jest.Mock };
+  let mockConnection: { executeReadStream: jest.Mock };
   let scanner: Scanner;
   
   beforeEach(() => {
     // Create a mock connection
     mockConnection = {
-      executeStream: jest.fn(),
+      executeReadStream: jest.fn(),
     };
     
     // Create a scanner with the mock connection
@@ -51,7 +51,7 @@ describe('Scanner', () => {
     
     // Mock the stream
     const mockStream = createMockStream(mockData);
-    mockConnection.executeStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
+    mockConnection.executeReadStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
     
     // Scan and collect results
     const results: { key: Buffer; value: Buffer }[] = [];
@@ -67,7 +67,7 @@ describe('Scanner', () => {
     expect(results[1].value.toString()).toBe('value2');
     
     // Verify connection calls
-    expect(mockConnection.executeStream).toHaveBeenCalledWith('Scan', {
+    expect(mockConnection.executeReadStream).toHaveBeenCalledWith('Scan', {
       limit: 0,
       reverse: false,
     });
@@ -81,7 +81,7 @@ describe('Scanner', () => {
     
     // Mock the stream
     const mockStream = createMockStream(mockData);
-    mockConnection.executeStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
+    mockConnection.executeReadStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
     
     // Scan with prefix
     const results: { key: Buffer; value: Buffer }[] = [];
@@ -94,7 +94,7 @@ describe('Scanner', () => {
     expect(results[0].key.toString()).toBe('prefix-key1');
     
     // Verify connection calls
-    expect(mockConnection.executeStream).toHaveBeenCalledWith('Scan', {
+    expect(mockConnection.executeReadStream).toHaveBeenCalledWith('Scan', {
       limit: 0,
       reverse: false,
       prefix: expect.any(Buffer),
@@ -109,7 +109,7 @@ describe('Scanner', () => {
     
     // Mock the stream
     const mockStream = createMockStream(mockData);
-    mockConnection.executeStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
+    mockConnection.executeReadStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
     
     // Scan with range
     const results: { key: Buffer; value: Buffer }[] = [];
@@ -127,7 +127,7 @@ describe('Scanner', () => {
     expect(results[0].key.toString()).toBe('key3');
     
     // Verify connection calls
-    expect(mockConnection.executeStream).toHaveBeenCalledWith('Scan', {
+    expect(mockConnection.executeReadStream).toHaveBeenCalledWith('Scan', {
       start_key: expect.any(Buffer),
       end_key: expect.any(Buffer),
       limit: 10,
@@ -143,7 +143,7 @@ describe('Scanner', () => {
     
     // Mock the stream
     const mockStream = createMockStream(mockData);
-    mockConnection.executeStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
+    mockConnection.executeReadStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
     
     // Scan with suffix
     const results: { key: Buffer; value: Buffer }[] = [];
@@ -156,7 +156,7 @@ describe('Scanner', () => {
     expect(results[0].key.toString()).toBe('key-suffix');
     
     // Verify connection calls
-    expect(mockConnection.executeStream).toHaveBeenCalledWith('Scan', {
+    expect(mockConnection.executeReadStream).toHaveBeenCalledWith('Scan', {
       limit: 0,
       reverse: false,
       suffix: expect.any(Buffer),
@@ -171,7 +171,7 @@ describe('Scanner', () => {
     
     // Mock the stream
     const mockStream = createMockStream(mockData);
-    mockConnection.executeStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
+    mockConnection.executeReadStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
     
     // Scan with both prefix and suffix
     const results: { key: Buffer; value: Buffer }[] = [];
@@ -187,7 +187,7 @@ describe('Scanner', () => {
     expect(results[0].key.toString()).toBe('prefix-key-suffix');
     
     // Verify connection calls
-    expect(mockConnection.executeStream).toHaveBeenCalledWith('Scan', {
+    expect(mockConnection.executeReadStream).toHaveBeenCalledWith('Scan', {
       limit: 0,
       reverse: false,
       prefix: expect.any(Buffer),
@@ -198,7 +198,7 @@ describe('Scanner', () => {
   test('should handle scan errors', async () => {
     // Mock connection to throw error
     const mockError = new Error('Test error');
-    mockConnection.executeStream.mockImplementation(() => {
+    mockConnection.executeReadStream.mockImplementation(() => {
       throw mockError;
     });
     

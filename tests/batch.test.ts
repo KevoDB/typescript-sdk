@@ -6,13 +6,13 @@ import { BatchWriter, OperationType } from '../src/batch';
 import { Connection } from '../src/connection';
 
 describe('BatchWriter', () => {
-  let mockConnection: { executeWithRetry: jest.Mock };
+  let mockConnection: { executeWrite: jest.Mock };
   let batchWriter: BatchWriter;
   
   beforeEach(() => {
     // Create a mock connection
     mockConnection = {
-      executeWithRetry: jest.fn(),
+      executeWrite: jest.fn(),
     };
     
     // Create a batch writer with the mock connection
@@ -54,7 +54,7 @@ describe('BatchWriter', () => {
   
   test('should execute batch operations', async () => {
     // Setup mock
-    mockConnection.executeWithRetry.mockResolvedValue({});
+    mockConnection.executeWrite.mockResolvedValue({});
     
     // Add operations
     batchWriter.put('key1', 'value1');
@@ -64,7 +64,7 @@ describe('BatchWriter', () => {
     await batchWriter.execute();
     
     // Verify connection call
-    expect(mockConnection.executeWithRetry).toHaveBeenCalledWith('BatchWrite', {
+    expect(mockConnection.executeWrite).toHaveBeenCalledWith('BatchWrite', {
       operations: [
         {
           type: OperationType.PUT,
@@ -87,7 +87,7 @@ describe('BatchWriter', () => {
     await batchWriter.execute();
     
     // Verify connection not called
-    expect(mockConnection.executeWithRetry).not.toHaveBeenCalled();
+    expect(mockConnection.executeWrite).not.toHaveBeenCalled();
   });
   
   test('should throw error for put operation without value', async () => {
@@ -109,7 +109,7 @@ describe('BatchWriter', () => {
   test('should handle batch execution error', async () => {
     // Setup mock to throw error
     const mockError = new Error('Connection failed');
-    mockConnection.executeWithRetry.mockRejectedValue(mockError);
+    mockConnection.executeWrite.mockRejectedValue(mockError);
     
     // Add operation
     batchWriter.put('key1', 'value1');

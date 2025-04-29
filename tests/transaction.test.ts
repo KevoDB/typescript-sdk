@@ -31,16 +31,16 @@ function createMockStream(data: { key: Buffer; value: Buffer }[]): Readable {
 
 describe('Transaction', () => {
   let mockConnection: { 
-    executeWithRetry: jest.Mock; 
-    executeStream: jest.Mock; 
+    executeWrite: jest.Mock; 
+    executeWriteStream: jest.Mock; 
   };
   let transaction: Transaction;
   
   beforeEach(() => {
     // Create a mock connection
     mockConnection = {
-      executeWithRetry: jest.fn(),
-      executeStream: jest.fn(),
+      executeWrite: jest.fn(),
+      executeWriteStream: jest.fn(),
     };
     
     // Create a transaction with the mock connection
@@ -54,13 +54,13 @@ describe('Transaction', () => {
     };
     
     // Setup mock
-    mockConnection.executeWithRetry.mockResolvedValue(mockResponse);
+    mockConnection.executeWrite.mockResolvedValue(mockResponse);
     
     // Begin transaction
     await transaction.begin();
     
     // Verify connection call
-    expect(mockConnection.executeWithRetry).toHaveBeenCalledWith('BeginTransaction', {
+    expect(mockConnection.executeWrite).toHaveBeenCalledWith('BeginTransaction', {
       readonly: false,
       timeout_ms: 30000,
     });
@@ -71,7 +71,7 @@ describe('Transaction', () => {
   
   test('should commit a transaction', async () => {
     // Setup mock
-    mockConnection.executeWithRetry.mockResolvedValue({});
+    mockConnection.executeWrite.mockResolvedValue({});
     
     // Set transaction ID directly for testing
     (transaction as any).id = 'test-tx-id';
@@ -80,7 +80,7 @@ describe('Transaction', () => {
     await transaction.commit();
     
     // Verify connection call
-    expect(mockConnection.executeWithRetry).toHaveBeenCalledWith('CommitTransaction', {
+    expect(mockConnection.executeWrite).toHaveBeenCalledWith('CommitTransaction', {
       transaction_id: 'test-tx-id',
     });
     
@@ -90,7 +90,7 @@ describe('Transaction', () => {
   
   test('should rollback a transaction', async () => {
     // Setup mock
-    mockConnection.executeWithRetry.mockResolvedValue({});
+    mockConnection.executeWrite.mockResolvedValue({});
     
     // Set transaction ID directly for testing
     (transaction as any).id = 'test-tx-id';
@@ -99,7 +99,7 @@ describe('Transaction', () => {
     await transaction.rollback();
     
     // Verify connection call
-    expect(mockConnection.executeWithRetry).toHaveBeenCalledWith('RollbackTransaction', {
+    expect(mockConnection.executeWrite).toHaveBeenCalledWith('RollbackTransaction', {
       transaction_id: 'test-tx-id',
     });
     
@@ -110,12 +110,12 @@ describe('Transaction', () => {
   test('should get a value from the transaction', async () => {
     // Mock response
     const mockResponse = {
-      exists: true,
+      found: true,
       value: Buffer.from('test-value'),
     };
     
     // Setup mock
-    mockConnection.executeWithRetry.mockResolvedValue(mockResponse);
+    mockConnection.executeWrite.mockResolvedValue(mockResponse);
     
     // Set transaction ID directly for testing
     (transaction as any).id = 'test-tx-id';
@@ -124,7 +124,7 @@ describe('Transaction', () => {
     const value = await transaction.get('test-key');
     
     // Verify connection call
-    expect(mockConnection.executeWithRetry).toHaveBeenCalledWith('TxGet', {
+    expect(mockConnection.executeWrite).toHaveBeenCalledWith('TxGet', {
       transaction_id: 'test-tx-id',
       key: expect.any(Buffer),
     });
@@ -136,11 +136,11 @@ describe('Transaction', () => {
   test('should throw KeyNotFoundError when key does not exist', async () => {
     // Mock response
     const mockResponse = {
-      exists: false,
+      found: false,
     };
     
     // Setup mock
-    mockConnection.executeWithRetry.mockResolvedValue(mockResponse);
+    mockConnection.executeWrite.mockResolvedValue(mockResponse);
     
     // Set transaction ID directly for testing
     (transaction as any).id = 'test-tx-id';
@@ -151,7 +151,7 @@ describe('Transaction', () => {
   
   test('should put a value in the transaction', async () => {
     // Setup mock
-    mockConnection.executeWithRetry.mockResolvedValue({});
+    mockConnection.executeWrite.mockResolvedValue({});
     
     // Set transaction ID directly for testing
     (transaction as any).id = 'test-tx-id';
@@ -160,7 +160,7 @@ describe('Transaction', () => {
     await transaction.put('test-key', 'test-value');
     
     // Verify connection call
-    expect(mockConnection.executeWithRetry).toHaveBeenCalledWith('TxPut', {
+    expect(mockConnection.executeWrite).toHaveBeenCalledWith('TxPut', {
       transaction_id: 'test-tx-id',
       key: expect.any(Buffer),
       value: expect.any(Buffer),
@@ -180,12 +180,12 @@ describe('Transaction', () => {
     );
     
     // Verify connection not called
-    expect(mockConnection.executeWithRetry).not.toHaveBeenCalled();
+    expect(mockConnection.executeWrite).not.toHaveBeenCalled();
   });
   
   test('should delete a value in the transaction', async () => {
     // Setup mock
-    mockConnection.executeWithRetry.mockResolvedValue({});
+    mockConnection.executeWrite.mockResolvedValue({});
     
     // Set transaction ID directly for testing
     (transaction as any).id = 'test-tx-id';
@@ -194,7 +194,7 @@ describe('Transaction', () => {
     await transaction.delete('test-key');
     
     // Verify connection call
-    expect(mockConnection.executeWithRetry).toHaveBeenCalledWith('TxDelete', {
+    expect(mockConnection.executeWrite).toHaveBeenCalledWith('TxDelete', {
       transaction_id: 'test-tx-id',
       key: expect.any(Buffer),
     });
@@ -213,7 +213,7 @@ describe('Transaction', () => {
     );
     
     // Verify connection not called
-    expect(mockConnection.executeWithRetry).not.toHaveBeenCalled();
+    expect(mockConnection.executeWrite).not.toHaveBeenCalled();
   });
   
   test('should scan values in the transaction', async () => {
@@ -225,7 +225,7 @@ describe('Transaction', () => {
     
     // Mock the stream
     const mockStream = createMockStream(mockData);
-    mockConnection.executeStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
+    mockConnection.executeWriteStream.mockReturnValue(mockStream as unknown as grpc.ClientReadableStream<unknown>);
     
     // Set transaction ID directly for testing
     (transaction as any).id = 'test-tx-id';
@@ -244,7 +244,7 @@ describe('Transaction', () => {
     expect(results[1].value.toString()).toBe('value2');
     
     // Verify connection call
-    expect(mockConnection.executeStream).toHaveBeenCalledWith('TxScan', {
+    expect(mockConnection.executeWriteStream).toHaveBeenCalledWith('TxScan', {
       transaction_id: 'test-tx-id',
       limit: 0,
       reverse: false,
@@ -254,7 +254,7 @@ describe('Transaction', () => {
   
   test('should not allow operations after commit', async () => {
     // Setup mock for commit
-    mockConnection.executeWithRetry.mockResolvedValue({});
+    mockConnection.executeWrite.mockResolvedValue({});
     
     // Set transaction ID directly for testing
     (transaction as any).id = 'test-tx-id';
@@ -286,7 +286,7 @@ describe('Transaction', () => {
   
   test('should not allow operations after rollback', async () => {
     // Setup mock for rollback
-    mockConnection.executeWithRetry.mockResolvedValue({});
+    mockConnection.executeWrite.mockResolvedValue({});
     
     // Set transaction ID directly for testing
     (transaction as any).id = 'test-tx-id';
@@ -319,7 +319,7 @@ describe('Transaction', () => {
   test('should handle transaction begin error', async () => {
     // Setup mock to throw error
     const mockError = new Error('Connection failed');
-    mockConnection.executeWithRetry.mockRejectedValue(mockError);
+    mockConnection.executeWrite.mockRejectedValue(mockError);
     
     // Attempt to begin transaction
     await expect(transaction.begin()).rejects.toThrow(
