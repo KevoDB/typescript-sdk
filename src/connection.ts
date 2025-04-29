@@ -58,13 +58,6 @@ export interface ConnectionOptions {
   replicaSelectionStrategy?: ReplicaSelectionStrategy;
 }
 
-interface NodeInfo {
-  host: string;
-  port: number;
-  role: 'primary' | 'replica';
-  available: boolean;
-}
-
 interface ReplicaConnection {
   client: GrpcServiceClient;
   address: string;
