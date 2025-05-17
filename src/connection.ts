@@ -76,8 +76,8 @@ export class Connection {
   constructor(options: ConnectionOptions) {
     this.options = {
       useTls: false,
-      connectTimeout: 5000,
-      requestTimeout: 10000,
+      connectTimeout: 10000,         // 10 seconds to match Python SDK
+      requestTimeout: 30000,         // 30 seconds to match Python SDK
       maxRetries: 3,
       retryDelay: 1000,
       autoRouteReads: true,
@@ -138,7 +138,14 @@ export class Connection {
 
       this.client = new serviceProto(address, credentials, {
         'grpc.max_receive_message_length': 20 * 1024 * 1024,  // 20MB
-        'grpc.max_send_message_length': 20 * 1024 * 1024      // 20MB
+        'grpc.max_send_message_length': 20 * 1024 * 1024,     // 20MB
+        // Add keep-alive parameters to prevent premature socket closures
+        'grpc.keepalive_time_ms': 30000,                      // Send keepalive pings every 30 seconds
+        'grpc.keepalive_timeout_ms': 10000,                   // Keepalive ping timeout after 10 seconds
+        'grpc.keepalive_permit_without_calls': 1,             // Allow keepalive pings even without active streams
+        'grpc.http2.max_pings_without_data': 5,               // Allow up to 5 pings without data
+        'grpc.http2.min_time_between_pings_ms': 10000,        // Minimum time between pings
+        'grpc.http2.min_ping_interval_without_data_ms': 5000  // Minimum ping interval without data
       });
 
       // Wait for the channel to be ready
@@ -468,7 +475,14 @@ export class Connection {
 
       const client = new serviceProto(address, credentials, {
         'grpc.max_receive_message_length': 20 * 1024 * 1024,  // 20MB
-        'grpc.max_send_message_length': 20 * 1024 * 1024      // 20MB
+        'grpc.max_send_message_length': 20 * 1024 * 1024,     // 20MB
+        // Add keep-alive parameters to prevent premature socket closures
+        'grpc.keepalive_time_ms': 30000,                      // Send keepalive pings every 30 seconds
+        'grpc.keepalive_timeout_ms': 10000,                   // Keepalive ping timeout after 10 seconds
+        'grpc.keepalive_permit_without_calls': 1,             // Allow keepalive pings even without active streams
+        'grpc.http2.max_pings_without_data': 5,               // Allow up to 5 pings without data
+        'grpc.http2.min_time_between_pings_ms': 10000,        // Minimum time between pings
+        'grpc.http2.min_ping_interval_without_data_ms': 5000  // Minimum ping interval without data
       });
 
       // Wait for the channel to be ready
